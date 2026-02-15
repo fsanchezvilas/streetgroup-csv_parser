@@ -25,13 +25,13 @@ class ImportNames extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(): int
     {
 	    $file = (string) $this->argument('file');
 
 	    if (! is_file($file)) {
 		    $this->error('Error: File not found.');
-		    return 1;
+		    return self::FAILURE;
 	    }
 
 	    // Read the file line-by-line. The provided sample behaves like a single-column CSV
@@ -39,7 +39,7 @@ class ImportNames extends Command
 	    $lines = file($file, FILE_IGNORE_NEW_LINES);
 	    if ($lines === false) {
 		    $this->error('Error: Unable to read file.');
-		    return 1;
+		    return self::FAILURE;
 	    }
 
 	    $parser = new NameParser();
@@ -67,11 +67,11 @@ class ImportNames extends Command
 
 	    if ($json === false) {
 		    $this->error('Error: Unable to encode JSON.');
-		    return 1;
+		    return self::FAILURE;
 	    }
 
 	    $this->line($json);
 
-	    return 0;
+	    return self::SUCCESS;
     }
 }
