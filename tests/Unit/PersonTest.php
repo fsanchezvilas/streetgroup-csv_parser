@@ -12,14 +12,14 @@ class PersonTest extends TestCase
         $person = new Person(
             title: 'Mr',
             firstName: 'John',
-            initial: null,
-            lastName: 'Smith'
+            lastName: 'Smith',
+            initial: null
         );
 
         $this->assertSame('Mr', $person->title);
         $this->assertSame('John', $person->firstName);
-        $this->assertNull($person->initial);
         $this->assertSame('Smith', $person->lastName);
+	    $this->assertNull($person->initial);
     }
 
     public function test_serialized_dto_to_array_with_correct_keys()
@@ -27,15 +27,16 @@ class PersonTest extends TestCase
         $person = new Person(
             title: 'Mrs',
             firstName: null,
-            initial: 'J',
-            lastName: 'Doe'
+            lastName: 'Doe',
+	        initial: 'J'
         );
 
         $expected = [
             'title' => 'Mrs',
             'first_name' => null,
-            'initial' => 'J',
             'last_name' => 'Doe',
+	        'initial' => 'J'
+
         ];
 
         $this->assertSame($expected, $person->toArray());

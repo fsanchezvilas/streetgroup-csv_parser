@@ -9,8 +9,8 @@ class Person implements JsonSerializable
     public function __construct(
         public readonly string $title,
         public readonly ?string $firstName,
-        public readonly ?string $initial,
         public readonly string $lastName,
+        public readonly ?string $initial,
     ) {}
 
     public function toArray(): array
@@ -18,8 +18,8 @@ class Person implements JsonSerializable
         return [
             'title' => $this->title,
             'first_name' => $this->firstName,
-            'initial' => $this->initial,
             'last_name' => $this->lastName,
+	        'initial' => $this->initial,
         ];
     }
 

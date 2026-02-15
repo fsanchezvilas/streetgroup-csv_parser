@@ -19,10 +19,10 @@
 			if (count($parts) === 3) {
 				return [
 						new Person(
-								title: $parts[0],
-								firstName: $parts[1],
-								initial: null,
-								lastName: $parts[2],
+							title: $parts[0],
+							firstName: $parts[1],
+							lastName: $parts[2],
+							initial: null,
 						),
 				];
 			}
