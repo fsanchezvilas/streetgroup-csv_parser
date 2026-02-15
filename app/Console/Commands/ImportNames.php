@@ -12,7 +12,7 @@ class ImportNames extends Command
      * @var string
      */
     
-    protected $signature = 'import:names {file}';
+    protected $signature = 'import:names {file : Path to the CSV file tests/Fixtures/homeowners.csv}';
 
     /**
      * The console command description.
