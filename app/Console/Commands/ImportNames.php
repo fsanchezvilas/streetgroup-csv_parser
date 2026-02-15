@@ -11,6 +11,7 @@ class ImportNames extends Command
      *
      * @var string
      */
+    
     protected $signature = 'import:names {file}';
 
     /**
@@ -27,7 +28,7 @@ class ImportNames extends Command
     {
         $file = $this->argument('file');
 
-        if (!file_exists($file)) {
+        if (! file_exists($file)) {
             $this->error('Error: File not found.');
             return 1;
         }
