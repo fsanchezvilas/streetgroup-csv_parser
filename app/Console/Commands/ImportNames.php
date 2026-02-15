@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\NameParser;
 use Illuminate\Console\Command;
 
 class ImportNames extends Command
@@ -11,7 +12,7 @@ class ImportNames extends Command
      *
      * @var string
      */
-    
+
     protected $signature = 'import:names {file : Path to the CSV file tests/Fixtures/homeowners.csv}';
 
     /**
@@ -26,13 +27,51 @@ class ImportNames extends Command
      */
     public function handle()
     {
-        $file = $this->argument('file');
+	    $file = (string) $this->argument('file');
 
-        if (! file_exists($file)) {
-            $this->error('Error: File not found.');
-            return 1;
-        }
+	    if (! is_file($file)) {
+		    $this->error('Error: File not found.');
+		    return 1;
+	    }
 
-        return 0;
+	    // Read the file line-by-line. The provided sample behaves like a single-column CSV
+	    // (each row contains a name and often ends with a trailing comma).
+	    $lines = file($file, FILE_IGNORE_NEW_LINES);
+	    if ($lines === false) {
+		    $this->error('Error: Unable to read file.');
+		    return 1;
+	    }
+
+	    $parser = new NameParser();
+
+	    $people = [];
+
+	    foreach ($lines as $line) {
+		    // Clean the line for tabs or extra whitespaces
+		    $line = trim($line);
+			// Remove the last , at the end of the line
+		    $line = rtrim($line, ',');
+
+		    if ($line === '') {
+			    continue;
+		    }
+
+		    // Parse the file to the DTO
+		    foreach ($parser->parse($line) as $person) {
+			    $people[] = $person;
+		    }
+	    }
+
+	    // Output as JSON (Person implements JsonSerializable).
+	    $json = json_encode($people, JSON_PRETTY_PRINT);
+
+	    if ($json === false) {
+		    $this->error('Error: Unable to encode JSON.');
+		    return 1;
+	    }
+
+	    $this->line($json);
+
+	    return 0;
     }
 }
