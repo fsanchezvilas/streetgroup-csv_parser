@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\NameParser;
 use Illuminate\Console\Command;
+use JsonException;
 
 class ImportNames extends Command
 {
@@ -49,7 +50,7 @@ class ImportNames extends Command
 	    foreach ($lines as $line) {
 		    // Clean the line for tabs or extra whitespaces
 		    $line = trim($line);
-			// Remove the last , at the end of the line
+			// Remove the last, at the end of the line
 		    $line = rtrim($line, ',');
 
 		    if ($line === '') {
@@ -62,15 +63,13 @@ class ImportNames extends Command
 		    }
 	    }
 
-	    // Output as JSON (Person implements JsonSerializable).
-	    $json = json_encode($people, JSON_PRETTY_PRINT);
-
-	    if ($json === false) {
+	    try {
+		    // Print the final payload as JSON.
+		    $this->line(json_encode($people, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+	    } catch (JsonException) {
 		    $this->error('Error: Unable to encode JSON.');
 		    return self::FAILURE;
 	    }
-
-	    $this->line($json);
 
 	    return self::SUCCESS;
     }
