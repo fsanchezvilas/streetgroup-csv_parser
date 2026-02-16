@@ -11,6 +11,15 @@
 		private const JOINERS = ['and', '&'];
 
 		/**
+		 * Parse one raw name string into one or more people.
+		 *
+		 * This parser is intentionally limited to the patterns present in the fixture:
+		 * - "Mr John Smith"
+		 * - "Mr M Mackie" / "Mr F. Fredrickson"
+		 * - "Mr and Mrs Smith"
+		 * - "Mr Tom Staff and Mr John Doe"
+		 * - "Dr & Mrs Joe Bloggs"
+		 *
 		 * @return array<int, Person>
 		 */
 		public function parse(string $name): array
@@ -21,40 +30,106 @@
 				return [];
 			}
 
-			$joiner = $this->detectJoiner($name);
-
-			if ($joiner !== null) {
-				$people = $this->parseWithJoiner($name, $joiner);
-
-				// If we cannot handle this joiner format yet, fall back to single parsing.
-				if (count($people) > 0) {
-					return $people;
-				}
+			// Rule 1: Shared last name couple: "Mr and Mrs Smith"
+			$people = $this->tryParseMrAndMrsSharedLastName($name);
+			if ($people !== null) {
+				return $people;
 			}
 
+			// Rule 2: Shared full name with ampersand: "Dr & Mrs Joe Bloggs"
+			$people = $this->tryParseAmpersandSharedName($name);
+			if ($people !== null) {
+				return $people;
+			}
+
+			// Rule 3: Two independent people: "Mr Tom Staff and Mr John Doe"
+			$people = $this->tryParseTwoPeopleJoined($name);
+			if ($people !== null) {
+				return $people;
+			}
+
+			// Rule 4: Single person: "Title Middle Last"
 			return $this->parseSingle($name);
 		}
+
 		/**
-		 * @return array<int, Person>
+		 * @return array<int, Person>|null
 		 */
-		private function parseWithJoiner(string $name, string $joiner): array
+		private function tryParseMrAndMrsSharedLastName(string $name): ?array
 		{
 			$tokens = preg_split('/\s+/', trim($name)) ?: [];
 
-			if ($joiner === 'and' && $this->isMrAndMrsSharedLastName($tokens)) {
-				return $this->makeMrAndMrsSharedLastName($tokens[3]);
+			if (! $this->isMrAndMrsSharedLastName($tokens)) {
+				return null;
+			}
+
+			return $this->makeMrAndMrsSharedLastName($tokens[3]);
+		}
+
+		/**
+		 * Case: "Dr & Mrs Joe Bloggs"
+		 *
+		 * @return array<int, Person>|null
+		 */
+		private function tryParseAmpersandSharedName(string $name): ?array
+		{
+			if (! Str::contains($name, ' & ')) {
+				return null;
+			}
+
+			$pair = $this->splitByJoiner($name, '&');
+			if ($pair === null) {
+				return null;
+			}
+
+			$leftTitle = trim($pair[0]);
+			$rightPeople = $this->parseSingle($pair[1]);
+
+			if (count($rightPeople) !== 1) {
+				return null;
+			}
+
+			$person = $rightPeople[0];
+
+			return [
+					new Person(
+							title: $leftTitle,
+							firstName: $person->firstName,
+							lastName: $person->lastName,
+							initial: $person->initial,
+					),
+					$person,
+			];
+		}
+
+		/**
+		 * Case: "Mr Tom Staff and Mr John Doe"
+		 *
+		 * @return array<int, Person>|null
+		 */
+		private function tryParseTwoPeopleJoined(string $name): ?array
+		{
+			$joiner = $this->detectJoiner($name);
+			if ($joiner === null) {
+				return null;
+			}
+
+			// Avoid treating "Mr and Mrs Smith" as two independent people.
+			if ($joiner === 'and') {
+				$tokens = preg_split('/\s+/', trim($name)) ?: [];
+				if ($this->isMrAndMrsSharedLastName($tokens)) {
+					return null;
+				}
 			}
 
 			$pair = $this->splitByJoiner($name, $joiner);
 			if ($pair === null) {
-				return [];
+				return null;
 			}
 
-			// Special case: "Dr & Mrs Joe Bloggs"
-			// Left side is a title, right side is "Title First Last".
-
+			// Ampersand special case is handled earlier.
 			if ($joiner === '&') {
-				return $this->parseAmpersandSharedName($pair[0], $pair[1]);
+				return null;
 			}
 
 			return [
@@ -85,34 +160,6 @@
 			return [
 					new Person(title: 'Mr', firstName: null, lastName: $lastName, initial: null),
 					new Person(title: 'Mrs', firstName: null, lastName: $lastName, initial: null),
-			];
-		}
-
-		/**
-		 * Case: "Dr & Mrs Joe Bloggs"
-		 * Left is a title, right is "Title First Last".
-		 *
-		 * @return array<int, Person>
-		 */
-		private function parseAmpersandSharedName(string $left, string $right): array
-		{
-			$leftTitle = trim($left);
-			$rightPeople = $this->parseSingle($right);
-
-			if (count($rightPeople) !== 1) {
-				return [];
-			}
-
-			$person = $rightPeople[0];
-
-			return [
-					new Person(
-							title: $leftTitle,
-							firstName: $person->firstName,
-							lastName: $person->lastName,
-							initial: $person->initial,
-					),
-					$person,
 			];
 		}
 
@@ -150,6 +197,8 @@
 		}
 
 		/**
+		 * Supported single-person format: Title + (FirstName|Initial) + LastName
+		 *
 		 * @return array<int, Person>
 		 */
 		private function parseSingle(string $name): array
@@ -171,7 +220,6 @@
 			$firstName = $middle;
 			$initial = null;
 
-			// Handle initials like "M" or "F." from the provided CSV fixture.
 			if ($this->isInitialToken($middle)) {
 				$firstName = null;
 				$initial = $this->normalizeInitial($middle);
@@ -187,9 +235,8 @@
 			];
 		}
 
-
 		/**
-		 * Returns true for tokens like "M" or "F." (no regex, fixture-scoped).
+		 * Returns true for tokens like "M" or "F." (fixture-scoped).
 		 */
 		private function isInitialToken(string $token): bool
 		{
@@ -199,9 +246,7 @@
 				return false;
 			}
 
-			$token = rtrim($token, '.');
-
-			return strlen($token) === 1 && ctype_alpha($token);
+			return preg_match('/^[A-Za-z]\.?$/', $token) === 1;
 		}
 
 		/**
