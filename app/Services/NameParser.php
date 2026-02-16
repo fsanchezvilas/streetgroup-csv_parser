@@ -100,13 +100,51 @@
 				return [];
 			}
 
+			$title = $tokens[0];
+			$middle = $tokens[1];
+			$lastName = $tokens[2];
+
+			$firstName = $middle;
+			$initial = null;
+
+			// Handle initials like "M" or "F." from the provided CSV fixture.
+			if ($this->isInitialToken($middle)) {
+				$firstName = null;
+				$initial = $this->normalizeInitial($middle);
+			}
+
 			return [
 					new Person(
-							title: $tokens[0],
-							firstName: $tokens[1],
-							lastName: $tokens[2],
-							initial: null,
+							title: $title,
+							firstName: $firstName,
+							lastName: $lastName,
+							initial: $initial,
 					),
 			];
+		}
+
+
+		/**
+		 * Returns true for tokens like "M" or "F." (no regex, fixture-scoped).
+		 */
+		private function isInitialToken(string $token): bool
+		{
+			$token = trim($token);
+
+			if ($token === '') {
+				return false;
+			}
+
+			$token = rtrim($token, '.');
+
+			return strlen($token) === 1 && ctype_alpha($token);
+		}
+
+		/**
+		 * Normalize "f" / "F." into "F".
+		 */
+		private function normalizeInitial(string $token): string
+		{
+			return strtoupper(rtrim(trim($token), '.'));
 		}
 	}
