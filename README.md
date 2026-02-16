@@ -9,6 +9,32 @@ Output schema per person:
 - `initial` (optional)
 - `last_name` (required)
 
+## Example
+
+### Input (CSV row)
+
+```csv
+Mr John Smith & Mrs Jane Smith
+```
+
+Output (JSON)
+```json
+[
+    {
+        "title": "Mr",
+        "first_name": "John",
+        "initial": null,
+        "last_name": "Smith"
+    },
+    {
+        "title": "Mrs",
+        "first_name": "Jane",
+        "initial": null,
+        "last_name": "Smith"
+    }
+]
+```
+
 ## Requirements
 
 - PHP 8.2+
