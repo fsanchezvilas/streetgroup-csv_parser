@@ -34,14 +34,18 @@
 
 			return $this->parseSingle($name);
 		}
-
 		/**
 		 * @return array<int, Person>
 		 */
 		private function parseWithJoiner(string $name, string $joiner): array
 		{
-			$pair = $this->splitByJoiner($name, $joiner);
+			$tokens = preg_split('/\s+/', trim($name)) ?: [];
 
+			if ($joiner === 'and' && $this->isMrAndMrsSharedLastName($tokens)) {
+				return $this->makeMrAndMrsSharedLastName($tokens[3]);
+			}
+
+			$pair = $this->splitByJoiner($name, $joiner);
 			if ($pair === null) {
 				return [];
 			}
@@ -49,6 +53,31 @@
 			return [
 					...$this->parseSingle($pair[0]),
 					...$this->parseSingle($pair[1]),
+			];
+		}
+
+		/**
+		 * Tokens: ["Mr", "and", "Mrs", "Smith"]
+		 *
+		 * @param array<int, string> $tokens
+		 */
+		private function isMrAndMrsSharedLastName(array $tokens): bool
+		{
+			return count($tokens) === 4
+					&& $tokens[0] === 'Mr'
+					&& $tokens[1] === 'and'
+					&& $tokens[2] === 'Mrs'
+					&& $tokens[3] !== '';
+		}
+
+		/**
+		 * @return array<int, Person>
+		 */
+		private function makeMrAndMrsSharedLastName(string $lastName): array
+		{
+			return [
+					new Person(title: 'Mr', firstName: null, lastName: $lastName, initial: null),
+					new Person(title: 'Mrs', firstName: null, lastName: $lastName, initial: null),
 			];
 		}
 
