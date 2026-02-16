@@ -1,19 +1,18 @@
 <?php
 
 	namespace App\Services;
+
 	use App\DTO\Person;
+	use Illuminate\Support\Str;
 
 	class NameParser
 	{
-		/**
-		 * Titles observed in the provided CSV fixture.
-		 */
-		private const array TITLES = ['Mr', 'Mrs', 'Mister', 'Ms', 'Dr', 'Prof'];
+		private const TITLES = ['Mr', 'Mrs', 'Mister', 'Ms', 'Dr', 'Prof'];
+		private const JOINERS = ['and', '&'];
 
 		/**
 		 * @return array<int, Person>
 		 */
-
 		public function parse(string $name): array
 		{
 			$name = trim($name);
@@ -22,28 +21,92 @@
 				return [];
 			}
 
-			$parts = preg_split('/\s+/', $name) ?: [];
+			$joiner = $this->detectJoiner($name);
 
-			if (count($parts) < 1 || ! $this->isKnownTitle($parts[0])) {
+			if ($joiner !== null) {
+				$people = $this->parseWithJoiner($name, $joiner);
+
+				// If we cannot handle this joiner format yet, fall back to single parsing.
+				if (count($people) > 0) {
+					return $people;
+				}
+			}
+
+			return $this->parseSingle($name);
+		}
+
+		/**
+		 * @return array<int, Person>
+		 */
+		private function parseWithJoiner(string $name, string $joiner): array
+		{
+			$pair = $this->splitByJoiner($name, $joiner);
+
+			if ($pair === null) {
 				return [];
 			}
 
-			// Expected: [title, firstName, lastName]
-			if (count($parts) === 3) {
-				return [
-						new Person(
-							title: $parts[0],
-							firstName: $parts[1],
-							lastName: $parts[2],
-							initial: null,
-						),
-				];
+			return [
+					...$this->parseSingle($pair[0]),
+					...$this->parseSingle($pair[1]),
+			];
+		}
+
+		private function detectJoiner(string $name): ?string
+		{
+			foreach (self::JOINERS as $joiner) {
+				if (Str::contains($name, ' ' . $joiner . ' ')) {
+					return $joiner;
+				}
 			}
 
-			return [];
+			return null;
 		}
-		private function isKnownTitle(string $token): bool
+
+		/**
+		 * @return array{0:string,1:string}|null
+		 */
+		private function splitByJoiner(string $name, string $joiner): ?array
 		{
-			return in_array($token, self::TITLES, true);
+			$needle = ' ' . $joiner . ' ';
+			$pieces = explode($needle, $name, 2);
+
+			if (count($pieces) !== 2) {
+				return null;
+			}
+
+			$left = trim($pieces[0]);
+			$right = trim($pieces[1]);
+
+			if ($left === '' || $right === '') {
+				return null;
+			}
+
+			return [$left, $right];
+		}
+
+		/**
+		 * @return array<int, Person>
+		 */
+		private function parseSingle(string $name): array
+		{
+			$tokens = preg_split('/\s+/', trim($name)) ?: [];
+
+			if (count($tokens) !== 3) {
+				return [];
+			}
+
+			if (! in_array($tokens[0], self::TITLES, true)) {
+				return [];
+			}
+
+			return [
+					new Person(
+							title: $tokens[0],
+							firstName: $tokens[1],
+							lastName: $tokens[2],
+							initial: null,
+					),
+			];
 		}
 	}
