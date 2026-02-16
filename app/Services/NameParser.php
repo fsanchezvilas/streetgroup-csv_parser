@@ -50,6 +50,13 @@
 				return [];
 			}
 
+			// Special case: "Dr & Mrs Joe Bloggs"
+			// Left side is a title, right side is "Title First Last".
+
+			if ($joiner === '&') {
+				return $this->parseAmpersandSharedName($pair[0], $pair[1]);
+			}
+
 			return [
 					...$this->parseSingle($pair[0]),
 					...$this->parseSingle($pair[1]),
@@ -78,6 +85,34 @@
 			return [
 					new Person(title: 'Mr', firstName: null, lastName: $lastName, initial: null),
 					new Person(title: 'Mrs', firstName: null, lastName: $lastName, initial: null),
+			];
+		}
+
+		/**
+		 * Case: "Dr & Mrs Joe Bloggs"
+		 * Left is a title, right is "Title First Last".
+		 *
+		 * @return array<int, Person>
+		 */
+		private function parseAmpersandSharedName(string $left, string $right): array
+		{
+			$leftTitle = trim($left);
+			$rightPeople = $this->parseSingle($right);
+
+			if (count($rightPeople) !== 1) {
+				return [];
+			}
+
+			$person = $rightPeople[0];
+
+			return [
+					new Person(
+							title: $leftTitle,
+							firstName: $person->firstName,
+							lastName: $person->lastName,
+							initial: $person->initial,
+					),
+					$person,
 			];
 		}
 
